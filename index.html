@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Portfolio Tracker</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Chart.js for visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+
+    <style>
+        /* --- Original User Styles (preserved) --- */
+        :root {
+            --primary-color: #0d6efd;
+            --light-gray: #f8f9fa;
+            --border-color: #dee2e6;
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--light-gray);
+        }
+        .navbar {
+            box-shadow: 0 2px 4px rgba(0,0,0,.05);
+            background-color: #fff !important;
+        }
+        .net-worth-container {
+            background-color: #fff;
+            padding: 1.5rem;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .net-worth-title {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: #6c757d;
+            margin-bottom: 0.5rem;
+        }
+        .net-worth-value {
+            font-size: 2.75rem;
+            font-weight: 700;
+            color: #343a40;
+        }
+        .card {
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            box-shadow: var(--card-shadow);
+            transition: all 0.2s ease-in-out;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .card-header {
+            background-color: #fff;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600;
+            padding: 1rem 1.25rem;
+        }
+        .nav-tabs {
+            border-bottom: 1px solid var(--border-color);
+        }
+        .nav-tabs .nav-link {
+            font-weight: 600;
+            color: #6c757d;
+            border: none;
+            border-bottom: 2px solid transparent;
+        }
+        .nav-tabs .nav-link.active {
+            color: var(--primary-color);
+            background-color: transparent;
+            border-color: var(--primary-color);
+        }
+        .chart-container {
+            position: relative;
+            height: 40vh;
+            width: 100%;
+        }
+        .modal-body .row > div {
+            margin-bottom: 1rem;
+        }
+        .clickable-asset {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .clickable-asset:hover {
+            text-decoration: underline;
+        }
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            transition: all 0.2s ease-in-out;
+        }
+        .btn-primary:hover {
+            opacity: 0.9;
+        }
+        .text-gain { color: #198754; }
+        .text-loss { color: #dc3545; }
+    </style>
+</head>
+<body>
+
+    <!-- Login Section -->
+    <div id="login-section" class="container my-5">
+      <div class="card mx-auto" style="max-width: 400px;">
+        <div class="card-header text-center">
+          <h5 class="mb-0">Login</h5>
+        </div>
+        <div class="card-body">
+          <form id="login-form">
+            <div class="mb-3">
+              <label for="username" class="form-label">Username</label>
+              <input type="text" id="username" class="form-control" required>
+            </div>
+            <div class="mb-3">
+              <label for="password" class="form-label">Password</label>
+              <input type="password" id="password" class="form-control" required>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Login or Create User</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Main Application View (Original User HTML is wrapped here and hidden by default) -->
+    <div id="portfolio-section" class="d-none">
+        <nav class="navbar navbar-expand-lg navbar-light bg-white sticky-top">
+            <div class="container-fluid">
+                <a class="navbar-brand fw-bold text-primary" href="#">RAR's Portfolio</a>
+            </div>
+        </nav>
+
+        <!-- Net Worth Display -->
+        <div class="net-worth-container">
+            <h2 class="net-worth-title">Total Invested Value</h2>
+            <p class="net-worth-value" id="total-net-worth">₹ 0.00</p>
+        </div>
+
+        <main class="container my-5">
+            <!-- Tabs for Equity and Mutual Funds -->
+            <ul class="nav nav-tabs" id="asset-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="equity-tab" data-bs-toggle="tab" data-bs-target="#equity-pane" type="button" role="tab" aria-controls="equity-pane" aria-selected="true">EQUITY</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="mf-tab" data-bs-toggle="tab" data-bs-target="#mf-pane" type="button" role="tab" aria-controls="mf-pane" aria-selected="false">MUTUAL FUNDS</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="sold-tab" data-bs-toggle="tab" data-bs-target="#sold-pane" type="button" role="tab" aria-controls="sold-pane" aria-selected="false">SOLD HOLDINGS</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="planned-tab" data-bs-toggle="tab" data-bs-target="#planned-pane" type="button" role="tab" aria-controls="planned-pane" aria-selected="false">FUTURE PLANNED ALLOCATION</button>
+                </li>
+                 <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tracking-tab" data-bs-toggle="tab" data-bs-target="#tracking-pane" type="button" role="tab" aria-controls="tracking-pane" aria-selected="false">DAILY TRACKING</button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="asset-tabs-content">
+                <!-- All original tab panes are preserved -->
+                <div class="tab-pane fade show active" id="equity-pane" role="tabpanel" aria-labelledby="equity-tab"><div class="card mt-4 mb-5"><div class="card-header"><h5 class="mb-0">Add New Equity</h5></div><div class="card-body"><form id="equity-form"><div class="row g-3"><div class="col-md-6"><label for="equity-company-name" class="form-label">Company Name</label><input type="text" class="form-control" id="equity-company-name" required></div><div class="col-md-6"><label for="equity-sector" class="form-label">Sector</label><input type="text" class="form-control" id="equity-sector" required></div><div class="col-md-6"><label for="equity-market-cap" class="form-label">Market Capitalization</label><select class="form-select" id="equity-market-cap" required><option value="Large Cap">Large Cap</option><option value="Mid Cap">Mid Cap</option><option value="Small Cap">Small Cap</option></select></div><div class="col-md-6"><label for="equity-dividend-yield" class="form-label">Expected Dividend Yield (%)</label><input type="number" class="form-control" id="equity-dividend-yield" step="0.01" min="0" required></div><hr class="my-4"><h6 class="text-muted">Initial Purchase</h6><div class="col-md-4"><label for="equity-buy-date" class="form-label">Buy Date</label><input type="date" class="form-control" id="equity-buy-date" required></div><div class="col-md-4"><label for="equity-quantity" class="form-label">Quantity</label><input type="number" class="form-control" id="equity-quantity" min="1" required></div><div class="col-md-4"><label for="equity-price" class="form-label">Price per Share (₹)</label><input type="number" class="form-control" id="equity-price" step="0.01" min="0" required></div></div><button type="submit" class="btn btn-primary mt-4">Add Equity</button></form></div></div><div class="card mb-5"><div class="card-header"><h5 class="mb-0">Equity Portfolio</h5></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover mb-0"><thead class="table-light"><tr><th>Company</th><th>Sector</th><th>Quantity</th><th>Avg. Price (₹)</th><th>Invested Amount (₹)</th><th>Actions</th></tr></thead><tbody id="equity-table-body"></tbody></table></div></div></div><div class="card mb-5"><div class="card-header"><h5 class="mb-0">Portfolio Dividend Summary</h5></div><div class="card-body text-center"><div class="row"><div class="col-md-6"><h6 class="text-muted">Weighted Average Dividend Yield</h6><p class="fs-4 fw-bold" id="weighted-avg-dividend-yield">0.00%</p></div><div class="col-md-6"><h6 class="text-muted">Total Expected Annual Dividend</h6><p class="fs-4 fw-bold" id="total-expected-dividend">₹ 0.00</p></div></div></div></div><hr class="my-5"><div class="card mt-4 mb-5"><div class="card-header"><h5 class="mb-0">Add New ETF</h5></div><div class="card-body"><form id="etf-form"><div class="row g-3"><div class="col-md-6"><label for="etf-name" class="form-label">ETF Name</label><input type="text" class="form-control" id="etf-name" required></div><div class="col-md-6"><label for="etf-category" class="form-label">Category</label><input type="text" class="form-control" id="etf-category" placeholder="e.g., Nifty 50, Gold" required></div><hr class="my-4"><h6 class="text-muted">Initial Purchase</h6><div class="col-md-4"><label for="etf-buy-date" class="form-label">Buy Date</label><input type="date" class="form-control" id="etf-buy-date" required></div><div class="col-md-4"><label for="etf-units" class="form-label">Units</label><input type="number" class="form-control" id="etf-units" step="0.001" min="0" required></div><div class="col-md-4"><label for="etf-price" class="form-label">Price per Unit (₹)</label><input type="number" class="form-control" id="etf-price" step="0.01" min="0" required></div></div><button type="submit" class="btn btn-primary mt-4">Add ETF</button></form></div></div><div class="card mb-5"><div class="card-header"><h5 class="mb-0">ETF Portfolio</h5></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover mb-0"><thead class="table-light"><tr><th>ETF Name</th><th>Category</th><th>Units</th><th>Avg. Price (₹)</th><th>Invested Amount (₹)</th><th>Actions</th></tr></thead><tbody id="etf-table-body"></tbody></table></div></div></div><h2 class="mb-4 text-center">Combined Equity & ETF Analysis</h2><div class="row g-4"><div class="col-lg-6"><div class="card"><div class="card-header">Asset Allocation</div><div class="card-body"><div class="chart-container"><canvas id="equity-company-chart"></canvas></div></div></div></div><div class="col-lg-6"><div class="card"><div class="card-header">Sectoral / Category Allocation</div><div class="card-body"><div class="chart-container"><canvas id="equity-sector-chart"></canvas></div></div></div></div></div></div>
+                <div class="tab-pane fade" id="mf-pane" role="tabpanel" aria-labelledby="mf-tab"><div class="card mt-4 mb-5"><div class="card-header"><h5 class="mb-0">Add New Mutual Fund</h5></div><div class="card-body"><form id="mf-form"><div class="row g-3"><div class="col-md-6"><label for="mf-name" class="form-label">Fund Name</label><input type="text" class="form-control" id="mf-name" required></div><div class="col-md-6"><label for="mf-category" class="form-label">Category</label><input type="text" class="form-control" id="mf-category" placeholder="e.g., Large Cap, Index Fund" required></div><hr class="my-4"><h6 class="text-muted">Initial Investment</h6><div class="col-md-4"><label for="mf-buy-date" class="form-label">Investment Date</label><input type="date" class="form-control" id="mf-buy-date" required></div><div class="col-md-4"><label for="mf-units" class="form-label">Units</label><input type="number" class="form-control" id="mf-units" step="0.001" min="0" required></div><div class="col-md-4"><label for="mf-nav" class="form-label">NAV (₹)</label><input type="number" class="form-control" id="mf-nav" step="0.01" min="0" required></div></div><button type="submit" class="btn btn-primary mt-4">Add Mutual Fund</button></form></div></div><div class="card mb-5"><div class="card-header"><h5 class="mb-0">Mutual Fund Portfolio</h5></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover mb-0"><thead class="table-light"><tr><th>Fund Name</th><th>Category</th><th>Units</th><th>Avg. NAV (₹)</th><th>Invested Amount (₹)</th><th>Actions</th></tr></thead><tbody id="mf-table-body"></tbody></table></div></div></div><h2 class="mb-4 text-center">Mutual Fund Analysis</h2><div class="row g-4"><div class="col-lg-6"><div class="card"><div class="card-header">Fund Allocation</div><div class="card-body"><div class="chart-container"><canvas id="mf-company-chart"></canvas></div></div></div></div><div class="col-lg-6"><div class="card"><div class="card-header">Category Allocation</div><div class="card-body"><div class="chart-container"><canvas id="mf-sector-chart"></canvas></div></div></div></div></div></div>
+                <div class="tab-pane fade" id="sold-pane" role="tabpanel" aria-labelledby="sold-tab"><div class="card mt-4"><div class="card-header"><div class="d-flex justify-content-between align-items-center"><h5 class="mb-0">Sold Holdings (Realized P/L)</h5><h5 class="mb-0" id="total-realized-pl">Total P/L: ₹ 0.00</h5></div></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover mb-0"><thead class="table-light"><tr><th>Asset Name</th><th>Sector / Category</th><th>Total Invested (₹)</th><th>Total Proceeds (₹)</th><th>Realized P/L (₹)</th><th>Exit Date</th><th style="width: 120px;">Actions</th></tr></thead><tbody id="sold-table-body"></tbody></table></div></div></div></div>
+                <div class="tab-pane fade" id="planned-pane" role="tabpanel" aria-labelledby="planned-tab"><div class="card mt-4 mb-5"><div class="card-header"><h5 class="mb-0">Add Planned Allocation</h5></div><div class="card-body"><form id="planned-form"><div class="row g-3"><div class="col-md-4"><label for="planned-sector" class="form-label">Sector</label><input type="text" class="form-control" id="planned-sector" required></div><div class="col-md-4"><label for="planned-company" class="form-label">Company / Fund Name</label><input type="text" class="form-control" id="planned-company" required></div><div class="col-md-4"><label for="planned-amount" class="form-label">Planned Amount (₹)</label><input type="number" class="form-control" id="planned-amount" step="0.01" min="0" required></div></div><button type="submit" class="btn btn-primary mt-4">Add Plan</button></form></div></div><div class="card mb-5"><div class="card-header"><h5 class="mb-0">Planned Investments</h5></div><div class="card-body" id="planned-allocations-list"></div></div><div class="card mb-5" style="background: #343a40; border: none;"><div class="card-header border-0 bg-transparent"><h4 class="mb-0 fw-bold" style="color: #ffffff;"><i class="fas fa-rocket me-2"></i>Investment Horizon Analytics</h4><p class="mb-0" style="color: rgba(255,255,255,0.8);">Your Complete Investment Overview</p></div><div class="card-body"><div class="row g-4"><div class="col-md-4"><div class="text-center p-3 rounded" style="background: rgba(255,255,255,0.1);"><i class="fas fa-wallet fa-2x mb-2" style="color: #ffffff;"></i><h6 class="mb-1" style="color: rgba(255,255,255,0.9);">Current Invested Value</h6><h3 class="fw-bold mb-0" style="color: #ffffff;" id="current-invested-value">₹ 0.00</h3></div></div><div class="col-md-4"><div class="text-center p-3 rounded" style="background: rgba(255,255,255,0.1);"><i class="fas fa-seedling fa-2x mb-2" style="color: #ffffff;"></i><h6 class="mb-1" style="color: rgba(255,255,255,0.9);">Planned Investment Value</h6><h3 class="fw-bold mb-0" style="color: #ffffff;" id="planned-investment-value">₹ 0.00</h3></div></div><div class="col-md-4"><div class="text-center p-3 rounded" style="background: rgba(255,255,255,0.1);"><i class="fas fa-chart-line fa-2x mb-2" style="color: #ffffff;"></i><h6 class="mb-1" style="color: rgba(255,255,255,0.9);">Combined Portfolio Value</h6><h3 class="fw-bold mb-0" style="color: #ffffff;" id="combined-portfolio-value">₹ 0.00</h3></div></div></div><div class="mt-4"><h6 class="mb-2" style="color: #ffffff;">Investment Composition</h6><div class="progress mb-2" style="height: 25px; background-color: rgba(255,255,255,0.2); border-radius: 12px;"><div class="progress-bar" role="progressbar" id="current-investment-bar" style="width: 0%; background: linear-gradient(45deg, #27ae60, #2ecc71); border-radius: 12px;"><span class="fw-bold" style="color: #ffffff; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);" id="current-investment-percentage">0%</span></div><div class="progress-bar" role="progressbar" id="planned-investment-bar" style="width: 0%; background: linear-gradient(45deg, #f39c12, #e67e22); border-radius: 12px;"><span class="fw-bold" style="color: #ffffff; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);" id="planned-investment-percentage">0%</span></div></div><div class="d-flex justify-content-between" style="font-size: 0.9rem;"><span style="color: rgba(255,255,255,0.9);"><i class="fas fa-circle me-1" style="color: #27ae60;"></i>Current Investments</span><span style="color: rgba(255,255,255,0.9);"><i class="fas fa-circle me-1" style="color: #f39c12;"></i>Planned Investments</span></div></div></div></div><h2 class="mb-4 text-center">Future Portfolio Projections</h2><div class="row g-4"><div class="col-lg-4"><div class="card"><div class="card-header">Planned Investments Only</div><div class="card-body"><div class="chart-container"><canvas id="planned-chart"></canvas></div></div></div></div><div class="col-lg-4"><div class="card"><div class="card-header">Projected Asset Allocation</div><div class="card-body"><div class="chart-container"><canvas id="projected-asset-chart"></canvas></div></div></div></div><div class="col-lg-4"><div class="card"><div class="card-header">Projected Sectoral Allocation</div><div class="card-body"><div class="chart-container"><canvas id="projected-sector-chart"></canvas></div></div></div></div></div></div>
+                <div class="tab-pane fade" id="tracking-pane" role="tabpanel" aria-labelledby="tracking-tab"><div class="card mt-4 mb-5"><div class="card-header"><h5 class="mb-0">Log Daily Portfolio Value</h5></div><div class="card-body"><form id="tracking-form"><div class="row g-3 align-items-end"><div class="col-md-5"><label for="tracking-date" class="form-label">Date</label><input type="date" class="form-control" id="tracking-date" required></div><div class="col-md-5"><label for="tracking-value" class="form-label">End of Day Market Value (₹)</label><input type="number" step="0.01" class="form-control" id="tracking-value" required></div><div class="col-md-2"><button type="submit" class="btn btn-primary w-100">Log Value</button></div></div></form></div></div><div class="card mb-5"><div class="card-header"><h5 class="mb-0">Performance History</h5></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover mb-0"><thead class="table-light"><tr><th>Date</th><th>Day</th><th>Invested Value (₹)</th><th>Market Value (₹)</th><th>Day's Change (₹)</th><th>Day's Change (%)</th><th>Total P/L (₹)</th></tr></thead><tbody id="tracking-table-body"></tbody></table></div></div></div><h2 class="mb-4 text-center">Portfolio Growth</h2><div class="card"><div class="card-header">Invested Value vs. Market Value</div><div class="card-body"><div class="chart-container" style="height: 50vh;"><canvas id="tracking-chart"></canvas></div></div></div><div class="card mt-4" id="cagr-card"><div class="card-header"><h5 class="mb-0">Compound Annual Growth Rate (CAGR)</h5></div><div class="card-body text-center"><h6 class="text-muted">Your portfolio's annualized growth rate</h6><p class="fs-1 fw-bold" id="cagr-value">--.--%</p><small class="text-muted" id="cagr-note">Requires at least one year of tracking data to calculate.</small></div></div></div>
+            </div>
+        </main>
+        
+        <!-- All original modals are preserved -->
+        <div class="modal fade" id="transaction-modal" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="transactionModalLabel">Add Transaction</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><form id="transaction-form"><input type="hidden" id="transaction-asset-type"><input type="hidden" id="transaction-asset-index"><input type="hidden" id="transaction-type"><div class="row"><div class="col-12"><label for="transaction-date" class="form-label">Date</label><input type="date" class="form-control" id="transaction-date" required></div><div class="col-12"><label for="transaction-quantity" class="form-label">Quantity / Units</label><input type="number" class="form-control" id="transaction-quantity" min="0" step="any" required></div><div class="col-12"><label for="transaction-price" class="form-label">Price / NAV (₹)</label><input type="number" class="form-control" id="transaction-price" min="0" step="0.01" required></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button><button type="submit" class="btn btn-primary">Save Transaction</button></div></form></div></div></div></div>
+        <div class="modal fade" id="ledger-modal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="ledgerModalLabel">Ledger</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><h6 class="mb-3">Transaction History</h6><div class="table-responsive mb-4"><table class="table table-sm"><thead class="table-light"><tr><th>Date</th><th>Type</th><th>Quantity / Units</th><th>Price / NAV (₹)</th><th>Amount (₹)</th></tr></thead><tbody id="ledger-transactions-body"></tbody></table></div><h6 class="mb-3">Dividend History</h6><div class="table-responsive mb-4"><table class="table table-sm"><thead class="table-light"><tr><th>Date</th><th>Amount (₹)</th></tr></thead><tbody id="ledger-dividends-body"></tbody></table></div><hr><div id="add-dividend-section"><h6 class="mb-3">Add Dividend</h6><form id="dividend-form"><input type="hidden" id="dividend-asset-type"><input type="hidden" id="dividend-asset-index"><div class="row align-items-end g-3"><div class="col-md-5"><label for="dividend-date" class="form-label">Date</label><input type="date" class="form-control" id="dividend-date" required></div><div class="col-md-5"><label for="dividend-amount" class="form-label">Amount (₹)</label><input type="number" class="form-control" id="dividend-amount" min="0" step="0.01" required></div><div class="col-md-2"><button type="submit" class="btn btn-primary w-100">Add</button></div></div></form></div><div id="edit-dividend-section" class="d-none"><hr class="my-4"><h6 class="mb-3">Edit Expected Dividend Yield</h6><form id="edit-dividend-form"><input type="hidden" id="edit-dividend-asset-index"><div class="row align-items-end g-3"><div class="col-md-9"><label for="edit-dividend-yield" class="form-label">Dividend Yield (%)</label><input type="number" class="form-control" id="edit-dividend-yield" min="0" step="0.01" required></div><div class="col-md-3"><button type="submit" class="btn btn-secondary w-100">Update</button></div></div></form></div></div></div></div></div>
+        <div class="modal fade" id="edit-equity-modal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="editEquityModalLabel">Edit Equity Details</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><form id="edit-equity-form"><input type="hidden" id="edit-equity-index"><div class="alert alert-warning small"><strong>Note:</strong> Editing these core values will overwrite the detailed transaction history with a single entry reflecting these new totals. For detailed transaction edits, please use the ledger.</div><div class="row g-3"><div class="col-md-6 mb-3"><label for="edit-equity-name" class="form-label">Company Name</label><input type="text" class="form-control" id="edit-equity-name" required></div><div class="col-md-6 mb-3"><label for="edit-equity-sector" class="form-label">Sector</label><input type="text" class="form-control" id="edit-equity-sector" required></div><div class="col-md-6 mb-3"><label for="edit-equity-quantity" class="form-label">Total Quantity</label><input type="number" class="form-control" id="edit-equity-quantity" step="any" min="0" required></div><div class="col-md-6 mb-3"><label for="edit-equity-avg-price" class="form-label">Average Price (₹)</label><input type="number" class="form-control" id="edit-equity-avg-price" step="0.01" min="0" required></div><div class="col-md-6 mb-3"><label for="edit-equity-invested-amount" class="form-label">Invested Amount (₹)</label><input type="text" class="form-control" id="edit-equity-invested-amount" readonly></div><div class="col-md-6 mb-3"><label for="edit-equity-dividend-yield-input" class="form-label">Dividend Yield (%)</label><input type="number" class="form-control" id="edit-equity-dividend-yield-input" step="0.01" min="0" required></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button><button type="submit" class="btn btn-primary">Save Changes</button></div></form></div></div></div></div>
+        <div class="modal fade" id="editSoldModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-primary text-white"><h5 class="modal-title" id="editSoldModalLabel"><i class="fas fa-edit me-2"></i>Edit Sold Holdings</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><div class="modal-body"><form id="editSoldForm"><input type="hidden" id="editSoldIndex"><div class="row g-3"><div class="col-md-6"><label class="form-label fw-bold">Asset Name</label><input type="text" class="form-control" id="editSoldName" required></div><div class="col-md-6"><label class="form-label fw-bold">Sector/Category</label><input type="text" class="form-control" id="editSoldSector" required></div><div class="col-md-6"><label class="form-label fw-bold">Total Invested (₹)</label><input type="number" class="form-control" id="editSoldInvested" step="0.01" min="0" required></div><div class="col-md-6"><label class="form-label fw-bold">Total Proceeds (₹)</label><input type="number" class="form-control" id="editSoldProceeds" step="0.01" min="0" required></div><div class="col-md-12"><label class="form-label fw-bold">Exit Date</label><input type="date" class="form-control" id="editSoldDate" required></div><div class="col-md-12"><div class="alert alert-info"><i class="fas fa-info-circle me-2"></i><strong>Calculated P/L:</strong> <span id="calculatedPL">₹ 0.00</span></div></div></div></form></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i class="fas fa-times me-1"></i>Cancel</button><button type="button" class="btn btn-primary" id="saveSoldChanges"><i class="fas fa-save me-1"></i>Save Changes</button></div></div></div></div>
+        <div class="modal fade" id="deleteSoldModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><div class="modal-header bg-danger text-white"><h5 class="modal-title" id="deleteSoldModalLabel"><i class="fas fa-exclamation-triangle me-2"></i>Confirm Delete</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><div class="modal-body"><p class="mb-3">Are you sure you want to delete this sold holding? This action cannot be undone.</p><div class="alert alert-warning"><div class="row"><div class="col-6"><strong>Asset:</strong></div><div class="col-6" id="deleteAssetName">-</div><div class="col-6"><strong>Sector:</strong></div><div class="col-6" id="deleteAssetSector">-</div><div class="col-6"><strong>P/L:</strong></div><div class="col-6" id="deleteAssetPL">-</div></div></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i class="fas fa-times me-1"></i>Cancel</button><button type="button" class="btn btn-danger" id="confirmDeleteSold"><i class="fas fa-trash me-1"></i>Delete Permanently</button></div></div></div></div>
+
+        <footer class="text-center py-4 mt-5 bg-light border-top">
+            <p class="mb-0 text-muted">Portfolio Tracker &copy; 2025</p>
+        </footer>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        Chart.register(ChartDataLabels);
+
+        // --- Firebase Configuration ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBQf5123lIbnmV-bEWicZbJuZJjhOZE4ss",
+            authDomain: "portfolio-72951.firebaseapp.com",
+            projectId: "portfolio-72951",
+            storageBucket: "portfolio-72951.firebasestorage.app",
+            messagingSenderId: "208594392465",
+            appId: "1:208594392465:web:2f86bee9c69251eb527630",
+            measurementId: "G-WM357F0CLF"
+        };
+
+        // --- Firebase Initialization ---
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // --- Global State & Variables ---
+        let equityPortfolio = [];
+        let etfPortfolio = [];
+        let mfPortfolio = [];
+        let soldPortfolio = [];
+        let plannedAllocations = [];
+        let dailyTrackingData = [];
+        
+        // --- Modal & Chart instances ---
+        let transactionModal, ledgerModal, editEquityModal, editSoldModal, deleteSoldModal;
+        const charts = {};
+
+        // --- Start of Embedded User Login Logic ---
+        let currentUser = null;
+        let portfolioDocRef = null;
+
+        const usersCollection = db.collection("users");
+
+        document.getElementById("login-form").addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const username = document.getElementById("username").value.trim();
+          const password = document.getElementById("password").value.trim();
+
+          if (!username || !password) {
+              alert("Username and password cannot be empty.");
+              return;
+          }
+
+          try {
+            // Look up user in Firestore
+            const userDoc = await usersCollection.doc(username).get();
+
+            if (!userDoc.exists) {
+              // New user -> create with password
+              await usersCollection.doc(username).set({
+                password: password,
+              });
+              alert("New user created! Welcome.");
+              currentUser = username;
+            } else {
+              const userData = userDoc.data();
+              if (userData.password !== password) {
+                alert("Invalid password!");
+                return;
+              }
+              currentUser = username;
+            }
+
+            // Set portfolio reference for this user. 
+            // This structure uses a subcollection for better data organization.
+            portfolioDocRef = usersCollection.doc(currentUser).collection("data").doc("portfolio");
+            
+            // Initialize the main application UI components
+            initializeAppUI();
+
+            // Hide login, show portfolio
+            document.getElementById("login-section").classList.add("d-none");
+            document.getElementById("portfolio-section").classList.remove("d-none");
+
+            // Load portfolio if exists
+            const portfolioSnap = await portfolioDocRef.get();
+            if (portfolioSnap.exists) {
+              const data = portfolioSnap.data();
+              equityPortfolio = data.equityPortfolio || [];
+              etfPortfolio = data.etfPortfolio || [];
+              mfPortfolio = data.mfPortfolio || [];
+              soldPortfolio = data.soldPortfolio || [];
+              plannedAllocations = data.plannedAllocations || [];
+              dailyTrackingData = data.dailyTrackingData || [];
+            } else {
+                // If no portfolio exists, ensure arrays are empty
+                equityPortfolio = []; etfPortfolio = []; mfPortfolio = [];
+                soldPortfolio = []; plannedAllocations = []; dailyTrackingData = [];
+            }
+            refreshUI(); // Now render with the loaded (or empty) data
+          } catch (err) {
+            console.error("Login error:", err);
+            alert("Login failed. See console.");
+          }
+        });
+
+        // Update saveData to use the logged-in user's portfolio
+        const saveData = async () => {
+          if (!portfolioDocRef) return;
+          try {
+            await portfolioDocRef.set({
+              equityPortfolio, etfPortfolio, mfPortfolio, soldPortfolio,
+              plannedAllocations, dailyTrackingData
+            });
+            console.log("Data saved for user:", currentUser);
+          } catch (error) {
+            console.error("Error saving data:", error);
+            alert("Error saving portfolio.");
+          }
+        };
+        // --- End of Embedded User Login Logic ---
+
+
+        // --- Application UI Initialization (runs after login) ---
+        let isAppInitialized = false;
+        const initializeAppUI = () => {
+            if (isAppInitialized) return;
+            
+            transactionModal = new bootstrap.Modal(document.getElementById('transaction-modal'));
+            ledgerModal = new bootstrap.Modal(document.getElementById('ledger-modal'));
+            editEquityModal = new bootstrap.Modal(document.getElementById('edit-equity-modal'));
+            editSoldModal = new bootstrap.Modal(document.getElementById('editSoldModal'));
+            deleteSoldModal = new bootstrap.Modal(document.getElementById('deleteSoldModal'));
+
+            const createPieChartConfig = () => ({ type: 'pie', data: { labels: [], datasets: [{ data: [], backgroundColor: ['#0d6efd', '#6f42c1', '#d63384', '#fd7e14', '#20c997', '#ffc107', '#6c757d', '#343a40'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'bottom', labels: { padding: 20, boxWidth: 12, font: { size: 14 } } }, tooltip: { callbacks: { label: function(context) { let label = context.label || ''; const value = context.parsed; const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0); const percentage = total > 0 ? (value / total * 100).toFixed(1) : 0; return `${label}: ₹${value.toLocaleString('en-IN')} (${percentage}%)`; } } }, datalabels: { display: false } } } });
+            const createLineChartConfig = () => ({ type: 'line', data: { labels: [], datasets: [] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { type: 'time', time: { unit: 'day' }, grid: { display: false } }, y: { beginAtZero: false, grid: { color: '#e9ecef' } } }, plugins: { legend: { position: 'top' } } } });
+
+            charts.equity = { company: new Chart(document.getElementById('equity-company-chart'), createPieChartConfig()), sector: new Chart(document.getElementById('equity-sector-chart'), createPieChartConfig()) };
+            charts.mf = { company: new Chart(document.getElementById('mf-company-chart'), createPieChartConfig()), sector: new Chart(document.getElementById('mf-sector-chart'), createPieChartConfig()) };
+            charts.tracking = new Chart(document.getElementById('tracking-chart'), createLineChartConfig());
+            charts.planned = new Chart(document.getElementById('planned-chart'), createPieChartConfig());
+            charts.projectedAsset = new Chart(document.getElementById('projected-asset-chart'), createPieChartConfig());
+            charts.projectedSector = new Chart(document.getElementById('projected-sector-chart'), createPieChartConfig());
+            
+            isAppInitialized = true;
+        };
+        
+        // --- All Original Functions Follow ---
+        const refreshUI = () => { equityPortfolio.forEach(calculateAssetMetrics); etfPortfolio.forEach(calculateAssetMetrics); mfPortfolio.forEach(calculateAssetMetrics); renderEquityTable(); renderEtfTable(); renderMfTable(); renderSoldTable(); renderPlannedAllocations(); renderDailyTracking(); calculateNetWorth(); calculateAndRenderDividends(); updateCharts(); updateInvestmentHorizonAnalytics(); };
+        const calculateAssetMetrics = (asset) => { if (!asset.transactions || asset.transactions.length === 0) { asset.totalQuantity = 0; asset.investedAmount = 0; asset.avgPrice = 0; asset.dividends = asset.dividends || []; return; } const buys = asset.transactions.filter(t => t.quantity > 0); const totalBuyQty = buys.reduce((sum, t) => sum + t.quantity, 0); const totalBuyCost = buys.reduce((sum, t) => sum + (t.quantity * t.price), 0); const totalSellQty = asset.transactions.filter(t => t.quantity < 0).reduce((sum, t) => sum + Math.abs(t.quantity), 0); asset.totalQuantity = totalBuyQty - totalSellQty; const avgBuyPrice = totalBuyQty > 0 ? totalBuyCost / totalBuyQty : 0; asset.investedAmount = asset.totalQuantity * avgBuyPrice; asset.avgPrice = avgBuyPrice; asset.dividends = asset.dividends || []; };
+        const calculateNetWorth = () => { const total = [...equityPortfolio, ...etfPortfolio, ...mfPortfolio].reduce((sum, asset) => sum + (asset.investedAmount || 0), 0); document.getElementById('total-net-worth').textContent = `₹ ${total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; };
+        const calculateAndRenderDividends = () => { const totalInvestedInEquities = equityPortfolio.reduce((sum, asset) => sum + asset.investedAmount, 0); const totalExpectedDividend = equityPortfolio.reduce((sum, asset) => sum + (asset.investedAmount * (asset.dividend || 0) / 100), 0); const weightedAvgYield = totalInvestedInEquities > 0 ? (totalExpectedDividend / totalInvestedInEquities) * 100 : 0; document.getElementById('weighted-avg-dividend-yield').textContent = `${weightedAvgYield.toFixed(2)}%`; document.getElementById('total-expected-dividend').textContent = `₹ ${totalExpectedDividend.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; };
+        const renderEquityTable = () => { const tableBody = document.getElementById('equity-table-body'); tableBody.innerHTML = ''; equityPortfolio.forEach((item, index) => { const row = `<tr><td><a href="#" class="clickable-asset" onclick="window.openLedgerModal('equity', ${index})">${item.name}</a></td><td>${item.sector}</td><td>${item.totalQuantity.toFixed(2)}</td><td>${item.avgPrice.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td><td>${item.investedAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td><td><button class="btn btn-sm btn-outline-success" onclick="window.openTransactionModal('equity', ${index}, 'buy')">Buy</button> <button class="btn btn-sm btn-outline-warning" onclick="window.openTransactionModal('equity', ${index}, 'sell')">Sell</button> <button class="btn btn-sm btn-outline-info" onclick="window.openEditEquityModal(${index})">Edit</button> <button class="btn btn-sm btn-outline-danger" onclick="window.deleteAsset('equity', ${index})">Delete</button></td></tr>`; tableBody.innerHTML += row; }); };
+        const renderEtfTable = () => { const tableBody = document.getElementById('etf-table-body'); tableBody.innerHTML = ''; etfPortfolio.forEach((item, index) => { const row = `<tr><td><a href="#" class="clickable-asset" onclick="window.openLedgerModal('etf', ${index})">${item.name}</a></td><td>${item.category}</td><td>${item.totalQuantity.toFixed(4)}</td><td>${item.avgPrice.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td><td>${item.investedAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td><td><button class="btn btn-sm btn-outline-success" onclick="window.openTransactionModal('etf', ${index}, 'buy')">Buy</button> <button class="btn btn-sm btn-outline-warning" onclick="window.openTransactionModal('etf', ${index}, 'sell')">Sell</button> <button class="btn btn-sm btn-outline-danger" onclick="window.deleteAsset('etf', ${index})">Delete</button></td></tr>`; tableBody.innerHTML += row; }); };
+        const renderMfTable = () => { const tableBody = document.getElementById('mf-table-body'); tableBody.innerHTML = ''; mfPortfolio.forEach((item, index) => { const row = `<tr><td><a href="#" class="clickable-asset" onclick="window.openLedgerModal('mf', ${index})">${item.name}</a></td><td>${item.category}</td><td>${item.totalQuantity.toFixed(4)}</td><td>${item.avgPrice.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td><td>${item.investedAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td><td><button class="btn btn-sm btn-outline-success" onclick="window.openTransactionModal('mf', ${index}, 'buy')">Invest</button> <button class="btn btn-sm btn-outline-warning" onclick="window.openTransactionModal('mf', ${index}, 'sell')">Sell</button> <button class="btn btn-sm btn-outline-danger" onclick="window.deleteAsset('mf', ${index})">Delete</button></td></tr>`; tableBody.innerHTML += row; }); };
+        const renderSoldTable = () => { const tableBody = document.getElementById('sold-table-body'); tableBody.innerHTML = ''; let totalPL = 0; (soldPortfolio || []).forEach((item, index) => { totalPL += item.realizedPL; const plClass = item.realizedPL >= 0 ? 'text-gain' : 'text-loss'; const sign = item.realizedPL >= 0 ? '+' : ''; const row = `<tr><td>${item.name}</td><td>${item.sector}</td><td>₹ ${item.totalInvested.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td><td>₹ ${item.totalProceeds.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td><td class="${plClass} fw-bold">${sign} ₹ ${Math.abs(item.realizedPL).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td><td>${item.exitDate}</td><td><button class="btn btn-sm btn-outline-primary me-1" onclick="window.editSoldHolding(${index})" title="Edit"><i class="fas fa-edit"></i></button><button class="btn btn-sm btn-outline-danger" onclick="window.deleteSoldHolding(${index})" title="Delete"><i class="fas fa-trash"></i></button></td></tr>`; tableBody.innerHTML += row; }); const totalPlElement = document.getElementById('total-realized-pl'); const totalPlClass = totalPL >= 0 ? 'text-gain' : 'text-loss'; const totalPlSign = totalPL >= 0 ? '+' : ''; totalPlElement.innerHTML = `Total P/L: <span class="${totalPlClass} fw-bold">${totalPlSign} ₹ ${Math.abs(totalPL).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>`; };
+        const renderPlannedAllocations = () => { const container = document.getElementById('planned-allocations-list'); container.innerHTML = ''; if (!plannedAllocations || plannedAllocations.length === 0) { container.innerHTML = '<p class="text-center text-muted mt-3">No future allocations planned yet.</p>'; return; } const groupedBySector = plannedAllocations.reduce((acc, plan) => { if (!acc[plan.sector]) acc[plan.sector] = []; acc[plan.sector].push(plan); return acc; }, {}); const accordionId = "planned-accordion"; let html = `<div class="accordion" id="${accordionId}">`; Object.keys(groupedBySector).sort().forEach((sector, index) => { const plans = groupedBySector[sector]; const totalSectorAmount = plans.reduce((sum, p) => sum + p.amount, 0); html += `<div class="accordion-item"><h2 class="accordion-header" id="heading-plan-${index}"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-plan-${index}">${sector} <span class="ms-auto fw-normal text-muted">Total Planned: ₹ ${totalSectorAmount.toLocaleString('en-IN')}</span></button></h2><div id="collapse-plan-${index}" class="accordion-collapse collapse" data-bs-parent="#${accordionId}"><div class="accordion-body p-0"><ul class="list-group list-group-flush">`; plans.forEach(plan => { html += `<li class="list-group-item d-flex justify-content-between align-items-center"><span>${plan.company}: ₹ ${plan.amount.toLocaleString('en-IN')}</span><button class="btn btn-sm btn-outline-danger" onclick="window.deletePlan(${plan.id})">Remove</button></li>`; }); html += `</ul></div></div></div>`; }); html += `</div>`; container.innerHTML = html; };
+        const renderDailyTracking = () => { const tableBody = document.getElementById('tracking-table-body'); tableBody.innerHTML = ''; (dailyTrackingData || []).sort((a, b) => new Date(b.date) - new Date(a.date)); const allPortfolios = [...equityPortfolio, ...etfPortfolio, ...mfPortfolio]; for (let i = 0; i < dailyTrackingData.length; i++) { const entry = dailyTrackingData[i]; const entryDate = new Date(entry.date); let investedCapitalOnDate = 0; allPortfolios.forEach(asset => { (asset.transactions || []).forEach(t => { if (new Date(t.date) <= entryDate) { investedCapitalOnDate += t.quantity * t.price; } }); }); const previousEntry = dailyTrackingData[i + 1]; const dayChange = previousEntry ? entry.value - previousEntry.value : 0; const dayChangePercent = previousEntry && previousEntry.value !== 0 ? (dayChange / previousEntry.value) * 100 : 0; const totalPL = entry.value - investedCapitalOnDate; const dayChangeClass = dayChange >= 0 ? 'text-gain' : 'text-loss'; const totalPlClass = totalPL >= 0 ? 'text-gain' : 'text-loss'; const dayOfWeek = entryDate.toLocaleDateString('en-IN', { weekday: 'long' }); const row = `<tr><td>${entry.date}</td><td>${dayOfWeek}</td><td>₹ ${investedCapitalOnDate.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td><td>₹ ${entry.value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td><td class="${dayChangeClass}">${dayChange >= 0 ? '+' : ''}${dayChange.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td><td class="${dayChangeClass}">${dayChangePercent.toFixed(2)}%</td><td class="${totalPlClass} fw-bold">${totalPL >= 0 ? '+' : ''}${totalPL.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td></tr>`; tableBody.innerHTML += row; } };
+        
+        const updateCharts = () => {
+            // Combined Equity & ETF Charts
+            const combinedEquityAssets = [...equityPortfolio, ...etfPortfolio];
+            charts.equity.company.data.labels = combinedEquityAssets.map(a => a.name);
+            charts.equity.company.data.datasets[0].data = combinedEquityAssets.map(a => a.investedAmount);
+
+            const combinedSectorData = {};
+            equityPortfolio.forEach(a => { combinedSectorData[a.sector] = (combinedSectorData[a.sector] || 0) + a.investedAmount; });
+            etfPortfolio.forEach(a => { combinedSectorData[a.category] = (combinedSectorData[a.category] || 0) + a.investedAmount; });
+            charts.equity.sector.data.labels = Object.keys(combinedSectorData);
+            charts.equity.sector.data.datasets[0].data = Object.values(combinedSectorData);
+
+            // Mutual Fund Charts
+            charts.mf.company.data.labels = mfPortfolio.map(a => a.name);
+            charts.mf.company.data.datasets[0].data = mfPortfolio.map(a => a.investedAmount);
+            const mfCategoryData = mfPortfolio.reduce((acc, a) => {
+                acc[a.category] = (acc[a.category] || 0) + a.investedAmount;
+                return acc;
+            }, {});
+            charts.mf.sector.data.labels = Object.keys(mfCategoryData);
+            charts.mf.sector.data.datasets[0].data = Object.values(mfCategoryData);
+            
+            // Planned & Projected Charts
+            const plannedCompanyData = (plannedAllocations || []).reduce((acc, p) => { acc[p.company] = (acc[p.company] || 0) + p.amount; return acc; }, {});
+            charts.planned.data.labels = Object.keys(plannedCompanyData);
+            charts.planned.data.datasets[0].data = Object.values(plannedCompanyData);
+
+            const projectedAssetData = {};
+            [...equityPortfolio, ...etfPortfolio, ...mfPortfolio].forEach(a => { projectedAssetData[a.name] = (projectedAssetData[a.name] || 0) + a.investedAmount; });
+            (plannedAllocations || []).forEach(p => { projectedAssetData[p.company] = (projectedAssetData[p.company] || 0) + p.amount; });
+            charts.projectedAsset.data.labels = Object.keys(projectedAssetData);
+            charts.projectedAsset.data.datasets[0].data = Object.values(projectedAssetData);
+
+            const projectedSectorData = {};
+            equityPortfolio.forEach(a => { projectedSectorData[a.sector] = (projectedSectorData[a.sector] || 0) + a.investedAmount; });
+            etfPortfolio.forEach(a => { projectedSectorData[a.category] = (projectedSectorData[a.category] || 0) + a.investedAmount; });
+            mfPortfolio.forEach(a => { projectedSectorData[a.category] = (projectedSectorData[a.category] || 0) + a.investedAmount; });
+            (plannedAllocations || []).forEach(p => { projectedSectorData[p.sector] = (projectedSectorData[p.sector] || 0) + p.amount; });
+            charts.projectedSector.data.labels = Object.keys(projectedSectorData);
+            charts.projectedSector.data.datasets[0].data = Object.values(projectedSectorData);
+
+            // Daily Tracking Line Chart
+            (dailyTrackingData || []).sort((a, b) => new Date(a.date) - new Date(b.date));
+            const allPortfolios = [...equityPortfolio, ...etfPortfolio, ...mfPortfolio];
+            const investedData = [];
+            const trackingLabels = (dailyTrackingData || []).map(entry => {
+                let investedCapitalOnDate = 0;
+                allPortfolios.forEach(asset => (asset.transactions || []).forEach(t => { if (new Date(t.date) <= new Date(entry.date)) investedCapitalOnDate += t.quantity * t.price; }));
+                investedData.push(investedCapitalOnDate);
+                return entry.date;
+            });
+            charts.tracking.data.labels = trackingLabels;
+            charts.tracking.data.datasets = [
+                { label: 'Market Value', data: (dailyTrackingData || []).map(e => e.value), borderColor: 'rgba(13, 110, 253, 0.8)', backgroundColor: 'rgba(13, 110, 253, 0.1)', fill: true, tension: 0.3 },
+                { label: 'Invested Value', data: investedData, borderColor: 'rgba(220, 53, 69, 0.8)', backgroundColor: 'rgba(220, 53, 69, 0.1)', fill: true, tension: 0.3 }
+            ];
+
+            // Final update call
+            Object.values(charts).forEach(chartGroup => {
+                if (chartGroup.company) {
+                    chartGroup.company.update();
+                    chartGroup.sector.update();
+                } else {
+                    chartGroup.update();
+                }
+            });
+        };
+
+        const updateInvestmentHorizonAnalytics = () => { const currentInvested = [...equityPortfolio, ...etfPortfolio, ...mfPortfolio].reduce((sum, asset) => sum + (asset.investedAmount || 0), 0); const plannedInvested = (plannedAllocations || []).reduce((sum, plan) => sum + (parseFloat(plan.amount) || 0), 0); const combinedValue = currentInvested + plannedInvested; document.getElementById('current-invested-value').textContent = `₹ ${currentInvested.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; document.getElementById('planned-investment-value').textContent = `₹ ${plannedInvested.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; document.getElementById('combined-portfolio-value').textContent = `₹ ${combinedValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; const currentBar = document.getElementById('current-investment-bar'); const plannedBar = document.getElementById('planned-investment-bar'); const currentPercentSpan = document.getElementById('current-investment-percentage'); const plannedPercentSpan = document.getElementById('planned-investment-percentage'); if (combinedValue > 0) { const currentPercentValue = (currentInvested / combinedValue) * 100; const plannedPercentValue = (plannedInvested / combinedValue) * 100; currentBar.style.width = currentPercentValue + '%'; plannedBar.style.width = plannedPercentValue + '%'; currentPercentSpan.textContent = currentPercentValue.toFixed(1) + '%'; plannedPercentSpan.textContent = plannedPercentValue.toFixed(1) + '%'; } else { currentBar.style.width = '0%'; plannedBar.style.width = '0%'; currentPercentSpan.textContent = '0%'; plannedPercentSpan.textContent = '0%'; } };
+        window.openTransactionModal = (type, index, transactionType) => { let portfolio; if (type === 'equity') portfolio = equityPortfolio; else if (type === 'mf') portfolio = mfPortfolio; else portfolio = etfPortfolio; const asset = portfolio[index]; const form = document.getElementById('transaction-form'); form.reset(); form.elements['transaction-asset-type'].value = type; form.elements['transaction-asset-index'].value = index; form.elements['transaction-type'].value = transactionType; document.getElementById('transactionModalLabel').textContent = `${transactionType === 'buy' ? 'Add Buy' : 'Add Sell'} Transaction for ${asset.name}`; transactionModal.show(); };
+        window.openLedgerModal = (type, index) => { let portfolio; if (type === 'equity') portfolio = equityPortfolio; else if (type === 'mf') portfolio = mfPortfolio; else portfolio = etfPortfolio; const asset = portfolio[index]; document.getElementById('ledgerModalLabel').textContent = `Ledger: ${asset.name}`; const transactionsBody = document.getElementById('ledger-transactions-body'); transactionsBody.innerHTML = ''; (asset.transactions || []).sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(t => { transactionsBody.innerHTML += `<tr><td>${t.date}</td><td>${t.quantity > 0 ? '<span class="text-success fw-bold">Buy</span>' : '<span class="text-danger fw-bold">Sell</span>'}</td><td>${Math.abs(t.quantity).toFixed(4)}</td><td>${t.price.toLocaleString('en-IN')}</td><td>${(t.quantity * t.price).toLocaleString('en-IN')}</td></tr>`; }); const dividendsBody = document.getElementById('ledger-dividends-body'); dividendsBody.innerHTML = ''; (asset.dividends || []).sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(d => { dividendsBody.innerHTML += `<tr><td>${d.date}</td><td>${d.amount.toLocaleString('en-IN')}</td></tr>`; }); if (!asset.dividends || asset.dividends.length === 0) dividendsBody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">No dividends recorded.</td></tr>'; document.getElementById('dividend-asset-type').value = type; document.getElementById('dividend-asset-index').value = index; document.getElementById('dividend-form').reset(); const editDividendSection = document.getElementById('edit-dividend-section'); if (type === 'equity') { editDividendSection.classList.remove('d-none'); document.getElementById('edit-dividend-asset-index').value = index; document.getElementById('edit-dividend-yield').value = asset.dividend || 0; } else { editDividendSection.classList.add('d-none'); } ledgerModal.show(); };
+        window.openEditEquityModal = (index) => { const asset = equityPortfolio[index]; document.getElementById('edit-equity-index').value = index; document.getElementById('edit-equity-name').value = asset.name; document.getElementById('edit-equity-sector').value = asset.sector; document.getElementById('edit-equity-quantity').value = asset.totalQuantity; document.getElementById('edit-equity-avg-price').value = asset.avgPrice; document.getElementById('edit-equity-invested-amount').value = asset.investedAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); document.getElementById('edit-equity-dividend-yield-input').value = asset.dividend || 0; editEquityModal.show(); };
+        window.deleteAsset = (type, index) => { if (confirm('Are you sure you want to permanently delete this asset?')) { if (type === 'equity') equityPortfolio.splice(index, 1); else if (type === 'mf') mfPortfolio.splice(index, 1); else if (type === 'etf') etfPortfolio.splice(index, 1); saveData(); refreshUI(); } };
+        window.deletePlan = (id) => { if(confirm('Are you sure?')) { plannedAllocations = plannedAllocations.filter(p => p.id !== id); saveData(); refreshUI(); } };
+        window.editSoldHolding = (index) => { const item = soldPortfolio[index]; document.getElementById('editSoldIndex').value = index; document.getElementById('editSoldName').value = item.name; document.getElementById('editSoldSector').value = item.sector; document.getElementById('editSoldInvested').value = item.totalInvested; document.getElementById('editSoldProceeds').value = item.totalProceeds; document.getElementById('editSoldDate').value = item.exitDate; document.getElementById('calculatedPL').textContent = `₹ ${(item.totalProceeds - item.totalInvested).toLocaleString('en-IN')}`; editSoldModal.show(); };
+        window.deleteSoldHolding = (index) => { const item = soldPortfolio[index]; document.getElementById('deleteAssetName').textContent = item.name; document.getElementById('deleteAssetSector').textContent = item.sector; document.getElementById('deleteAssetPL').textContent = `₹ ${item.realizedPL.toLocaleString('en-IN')}`; document.getElementById('confirmDeleteSold').dataset.index = index; deleteSoldModal.show(); };
+        document.getElementById('equity-form').addEventListener('submit', (e) => { e.preventDefault(); const newEquity = { name: document.getElementById('equity-company-name').value, sector: document.getElementById('equity-sector').value, cap: document.getElementById('equity-market-cap').value, dividend: parseFloat(document.getElementById('equity-dividend-yield').value), transactions: [{ date: document.getElementById('equity-buy-date').value, quantity: parseFloat(document.getElementById('equity-quantity').value), price: parseFloat(document.getElementById('equity-price').value) }], dividends: [] }; equityPortfolio.push(newEquity); e.target.reset(); saveData(); refreshUI(); });
+        document.getElementById('etf-form').addEventListener('submit', (e) => { e.preventDefault(); const newEtf = { name: document.getElementById('etf-name').value, category: document.getElementById('etf-category').value, transactions: [{ date: document.getElementById('etf-buy-date').value, quantity: parseFloat(document.getElementById('etf-units').value), price: parseFloat(document.getElementById('etf-price').value) }], dividends: [] }; etfPortfolio.push(newEtf); e.target.reset(); saveData(); refreshUI(); });
+        document.getElementById('mf-form').addEventListener('submit', (e) => { e.preventDefault(); const newMf = { name: document.getElementById('mf-name').value, category: document.getElementById('mf-category').value, transactions: [{ date: document.getElementById('mf-buy-date').value, quantity: parseFloat(document.getElementById('mf-units').value), price: parseFloat(document.getElementById('mf-nav').value) }], dividends: [] }; mfPortfolio.push(newMf); e.target.reset(); saveData(); refreshUI(); });
+        document.getElementById('planned-form').addEventListener('submit', (e) => { e.preventDefault(); const newPlan = { id: Date.now(), sector: document.getElementById('planned-sector').value, company: document.getElementById('planned-company').value, amount: parseFloat(document.getElementById('planned-amount').value) }; plannedAllocations.push(newPlan); e.target.reset(); saveData(); refreshUI(); });
+        document.getElementById('transaction-form').addEventListener('submit', (e) => { e.preventDefault(); const type = document.getElementById('transaction-asset-type').value; const index = document.getElementById('transaction-asset-index').value; const transactionType = document.getElementById('transaction-type').value; let portfolio; if (type === 'equity') portfolio = equityPortfolio; else if (type === 'mf') portfolio = mfPortfolio; else portfolio = etfPortfolio; let quantity = parseFloat(document.getElementById('transaction-quantity').value); if (transactionType === 'sell') { if (quantity > portfolio[index].totalQuantity) { if (!confirm(`Sell all ${portfolio[index].totalQuantity.toFixed(4)} units instead?`)) { return; } quantity = portfolio[index].totalQuantity; } quantity *= -1; } portfolio[index].transactions.push({ date: document.getElementById('transaction-date').value, quantity: quantity, price: parseFloat(document.getElementById('transaction-price').value) }); calculateAssetMetrics(portfolio[index]); if (portfolio[index].totalQuantity < 0.0001) { const soldAsset = portfolio.splice(index, 1)[0]; const buys = soldAsset.transactions.filter(t => t.quantity > 0); const sells = soldAsset.transactions.filter(t => t.quantity < 0); const totalBuyAmount = buys.reduce((sum, t) => sum + (t.quantity * t.price), 0); const totalSellAmount = sells.reduce((sum, t) => sum + (Math.abs(t.quantity) * t.price), 0); const lastTransactionDate = soldAsset.transactions.sort((a,b) => new Date(b.date) - new Date(a.date))[0].date; soldPortfolio.push({ name: soldAsset.name, sector: soldAsset.sector || soldAsset.category, totalInvested: totalBuyAmount, totalProceeds: totalSellAmount, realizedPL: totalSellAmount - totalBuyAmount, exitDate: lastTransactionDate }); } saveData(); refreshUI(); transactionModal.hide(); });
+        document.getElementById('dividend-form').addEventListener('submit', (e) => { e.preventDefault(); const type = document.getElementById('dividend-asset-type').value; const index = document.getElementById('dividend-asset-index').value; let portfolio; if (type === 'equity') portfolio = equityPortfolio; else if (type === 'mf') portfolio = mfPortfolio; else portfolio = etfPortfolio; portfolio[index].dividends.push({ date: document.getElementById('dividend-date').value, amount: parseFloat(document.getElementById('dividend-amount').value) }); saveData(); openLedgerModal(type, index); });
+        document.getElementById('edit-dividend-form').addEventListener('submit', (e) => { e.preventDefault(); const index = document.getElementById('edit-dividend-asset-index').value; equityPortfolio[index].dividend = parseFloat(document.getElementById('edit-dividend-yield').value); saveData(); refreshUI(); ledgerModal.hide(); });
+        document.getElementById('edit-equity-form').addEventListener('submit', function(e) { e.preventDefault(); const index = document.getElementById('edit-equity-index').value; const asset = equityPortfolio[index]; const newQuantity = parseFloat(document.getElementById('edit-equity-quantity').value); const newAvgPrice = parseFloat(document.getElementById('edit-equity-avg-price').value); asset.name = document.getElementById('edit-equity-name').value; asset.sector = document.getElementById('edit-equity-sector').value; asset.dividend = parseFloat(document.getElementById('edit-equity-dividend-yield-input').value); asset.transactions = [{ date: new Date().toISOString().split('T')[0], quantity: newQuantity, price: newAvgPrice }]; calculateAssetMetrics(asset); saveData(); refreshUI(); editEquityModal.hide(); });
+        document.getElementById('tracking-form').addEventListener('submit', (e) => { e.preventDefault(); const date = document.getElementById('tracking-date').value; const value = parseFloat(document.getElementById('tracking-value').value); const existingEntryIndex = dailyTrackingData.findIndex(d => d.date === date); if (existingEntryIndex > -1) { dailyTrackingData[existingEntryIndex].value = value; } else { dailyTrackingData.push({ date, value }); } e.target.reset(); saveData(); refreshUI(); });
+        document.getElementById('saveSoldChanges').addEventListener('click', () => { const index = document.getElementById('editSoldIndex').value; const item = soldPortfolio[index]; item.name = document.getElementById('editSoldName').value; item.sector = document.getElementById('editSoldSector').value; item.totalInvested = parseFloat(document.getElementById('editSoldInvested').value); item.totalProceeds = parseFloat(document.getElementById('editSoldProceeds').value); item.exitDate = document.getElementById('editSoldDate').value; item.realizedPL = item.totalProceeds - item.totalInvested; saveData(); refreshUI(); editSoldModal.hide(); });
+        document.getElementById('confirmDeleteSold').addEventListener('click', function() { const index = this.dataset.index; soldPortfolio.splice(index, 1); saveData(); refreshUI(); deleteSoldModal.hide(); });
+    });
+    </script>
+</body>
+</html>
+
